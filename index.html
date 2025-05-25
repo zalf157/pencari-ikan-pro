@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pencari Ikan Pro</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(135deg, #1e3c72, #2a5298);
+            height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .app-container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            max-width: 400px;
+            margin: 0 auto;
+            background: #000;
+            border: 2px solid #333;
+        }
+
+        .header {
+            background: linear-gradient(90deg, #0f1419, #1a2332);
+            color: #00ff88;
+            padding: 10px;
+            text-align: center;
+            border-bottom: 1px solid #333;
+        }
+
+        .sonar-display {
+            flex: 1;
+            background: #000;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .depth-scale {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 40px;
+            height: 100%;
+            background: rgba(0, 255, 136, 0.1);
+            border-right: 1px solid #00ff88;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 10px 5px;
+            font-size: 10px;
+            color: #00ff88;
+        }
+
+        .sonar-canvas {
+            position: absolute;
+            left: 40px;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at center, #001122, #000);
+        }
+
+        .water-line {
+            position: absolute;
+            top: 0;
+            left: 40px;
+            right: 0;
+            height: 2px;
+            background: #00aaff;
+            box-shadow: 0 0 10px #00aaff;
+        }
+
+        .fish-icon {
+            position: absolute;
+            color: #ff6600;
+            font-size: 16px;
+            animation: fishPulse 2s infinite;
+        }
+
+        @keyframes fishPulse {
+            0%, 100% { opacity: 0.8; transform: scale(1); }
+            50% { opacity: 1; transform: scale(1.2); }
+        }
+
+        .bottom-contour {
+            position: absolute;
+            bottom: 0;
+            left: 40px;
+            right: 0;
+            height: 80px;
+            background: linear-gradient(to top, #8B4513, rgba(139, 69, 19, 0.3));
+            clip-path: polygon(0% 60%, 10% 40%, 25% 70%, 40% 30%, 55% 50%, 70% 20%, 85% 45%, 100% 35%, 100% 100%, 0% 100%);
+        }
+
+        .info-panel {
+            background: linear-gradient(90deg, #1a2332, #0f1419);
+            color: #00ff88;
+            padding: 15px;
+            border-top: 1px solid #333;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .controls {
+            background: #1a1a1a;
+            padding: 10px;
+            display: flex;
+            justify-content: space-around;
+            border-top: 1px solid #333;
+        }
+
+        .control-btn {
+            background: linear-gradient(145deg, #2a3441, #1e2832);
+            border: 1px solid #00ff88;
+            color: #00ff88;
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s;
+        }
+
+        .control-btn:hover {
+            background: linear-gradient(145deg, #00ff88, #00cc66);
+            color: #000;
+            box-shadow: 0 0 10px #00ff88;
+        }
+
+        .control-btn.active {
+            background: #00ff88;
+            color: #000;
+        }
+
+        .sonar-sweep {
+            position: absolute;
+            top: 0;
+            left: 40px;
+            width: 2px;
+            height: 100%;
+            background: linear-gradient(to bottom, transparent, #00ff88, transparent);
+            animation: sonarSweep 3s linear infinite;
+        }
+
+        @keyframes sonarSweep {
+            0% { left: 40px; opacity: 1; }
+            100% { left: calc(100% - 2px); opacity: 0.3; }
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 5px;
+            animation: statusBlink 1.5s infinite;
+        }
+
+        .gps-status { background: #00ff00; }
+        .sonar-status { background: #00aaff; }
+
+        @keyframes statusBlink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.3; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <div class="header">
+            <h2>🐟 FISH FINDER PRO</h2>
+        </div>
+
+        <div class="sonar-display">
+            <div class="depth-scale">
+                <div>0ft</div>
+                <div>10ft</div>
+                <div>20ft</div>
+                <div>30ft</div>
+                <div>40ft</div>
+                <div>50ft</div>
+            </div>
+            
+            <div class="sonar-canvas" id="sonarCanvas">
+                <div class="water-line"></div>
+                <div class="sonar-sweep"></div>
+                <div class="bottom-contour"></div>
+            </div>
+        </div>
+
+        <div class="info-panel">
+            <div class="info-row">
+                <span><span class="status-indicator gps-status"></span>GPS: ON</span>
+                <span>Speed: <span id="speed">2.3</span> mph</span>
+            </div>
+            <div class="info-row">
+                <span><span class="status-indicator sonar-status"></span>Sonar: Active</span>
+                <span>Temp: <span id="temp">68</span>°F</span>
+            </div>
+            <div class="info-row">
+                <span>Depth: <span id="depth">42</span> ft</span>
+                <span>Fish: <span id="fishCount">3</span> detected</span>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="control-btn" onclick="togglePower()">POWER</button>
+            <button class="control-btn" onclick="adjustSensitivity()">SENS+</button>
+            <button class="control-btn" onclick="toggleZoom()">ZOOM</button>
+            <button class="control-btn" onclick="markWaypoint()">MARK</button>
+        </div>
+    </div>
+
+    <script>
+        let isActive = true;
+        let sensitivity = 50;
+        let zoomLevel = 1;
+        let fishData = [];
+
+        // Initialize fish positions
+        function initializeFish() {
+            const fish = [
+                { x: 20, y: 30, size: 'small' },
+                { x: 60, y: 45, size: 'medium' },
+                { x: 85, y: 25, size: 'large' },
+                { x: 40, y: 55, size: 'small' },
+                { x: 75, y: 35, size: 'medium' }
+            ];
+
+            const canvas = document.getElementById('sonarCanvas');
+            fish.forEach((fishItem, index) => {
+                const fishElement = document.createElement('div');
+                fishElement.className = 'fish-icon';
+                fishElement.innerHTML = '🐟';
+                fishElement.style.left = fishItem.x + '%';
+                fishElement.style.top = fishItem.y + '%';
+                fishElement.style.fontSize = fishItem.size === 'large' ? '20px' : 
+                                           fishItem.size === 'medium' ? '16px' : '12px';
+                canvas.appendChild(fishElement);
+            });
+
+            fishData = fish;
+        }
+
+        // Update display values
+        function updateDisplay() {
+            if (!isActive) return;
+
+            // Simulate changing values
+            const depth = Math.floor(Math.random() * 10) + 38;
+            const speed = (Math.random() * 0.5 + 2).toFixed(1);
+            const temp = Math.floor(Math.random() * 4) + 66;
+            const fishCount = fishData.length + Math.floor(Math.random() * 3);
+
+            document.getElementById('depth').textContent = depth;
+            document.getElementById('speed').textContent = speed;
+            document.getElementById('temp').textContent = temp;
+            document.getElementById('fishCount').textContent = fishCount;
+        }
+
+        // Control functions
+        function togglePower() {
+            isActive = !isActive;
+            const canvas = document.getElementById('sonarCanvas');
+            if (isActive) {
+                canvas.style.opacity = '1';
+                document.querySelector('.sonar-sweep').style.animationPlayState = 'running';
+            } else {
+                canvas.style.opacity = '0.3';
+                document.querySelector('.sonar-sweep').style.animationPlayState = 'paused';
+            }
+        }
+
+        function adjustSensitivity() {
+            sensitivity += 10;
+            if (sensitivity > 100) sensitivity = 30;
+            
+            // Adjust fish visibility based on sensitivity
+            const fishIcons = document.querySelectorAll('.fish-icon');
+            fishIcons.forEach(fish => {
+                fish.style.opacity = sensitivity > 70 ? '1' : '0.7';
+            });
+        }
+
+        function toggleZoom() {
+            zoomLevel = zoomLevel === 1 ? 2 : 1;
+            const depthScale = document.querySelector('.depth-scale');
+            if (zoomLevel === 2) {
+                depthScale.innerHTML = '<div>0ft</div><div>5ft</div><div>10ft</div><div>15ft</div><div>20ft</div><div>25ft</div>';
+            } else {
+                depthScale.innerHTML = '<div>0ft</div><div>10ft</div><div>20ft</div><div>30ft</div><div>40ft</div><div>50ft</div>';
+            }
+        }
+
+        function markWaypoint() {
+            // Create waypoint marker
+            const canvas = document.getElementById('sonarCanvas');
+            const marker = document.createElement('div');
+            marker.innerHTML = '📍';
+            marker.style.position = 'absolute';
+            marker.style.left = Math.random() * 80 + 10 + '%';
+            marker.style.top = Math.random() * 60 + 20 + '%';
+            marker.style.fontSize = '14px';
+            marker.style.zIndex = '10';
+            canvas.appendChild(marker);
+
+            // Remove marker after 5 seconds
+            setTimeout(() => {
+                if (marker.parentNode) {
+                    marker.parentNode.removeChild(marker);
+                }
+            }, 5000);
+        }
+
+        // Add random fish movement
+        function animateFish() {
+            const fishIcons = document.querySelectorAll('.fish-icon');
+            fishIcons.forEach(fish => {
+                const currentLeft = parseFloat(fish.style.left);
+                const currentTop = parseFloat(fish.style.top);
+                
+                const newLeft = Math.max(5, Math.min(90, currentLeft + (Math.random() - 0.5) * 5));
+                const newTop = Math.max(20, Math.min(80, currentTop + (Math.random() - 0.5) * 3));
+                
+                fish.style.left = newLeft + '%';
+                fish.style.top = newTop + '%';
+            });
+        }
+
+        // Initialize the app
+        initializeFish();
+        
+        // Update display every 2 seconds
+        setInterval(updateDisplay, 2000);
+        
+        // Animate fish every 4 seconds
+        setInterval(animateFish, 4000);
+
+        // Initial display update
+        updateDisplay();
+    </script>
+</body>
+</html>
